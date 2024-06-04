@@ -131,7 +131,7 @@ public class Main extends SimpleApplication {
     */
     
      public void loadAndPlayMusic() {
-        // Cargar el archivo de audio OGG
+        // Cargar el archivo de audio 
         audio = new AudioNode(assetManager, "Sounds/AquaSong.wav", DataType.Stream);
         audio.setLooping(true); // Para que la música se repita
         audio.setPositional(false); // La música de fondo no es posicional
