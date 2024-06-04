@@ -20,10 +20,13 @@ import com.jme3.scene.Spatial;
 import com.jme3.input.controls.ActionListener;
 import com.jme3.material.Material;
 import com.jme3.math.Ray;
+import com.jme3.texture.Texture;
 import com.jme3.math.Vector2f;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.shape.Sphere;
-import com.jme3.texture.Texture;
+import com.jme3.audio.AudioNode;
+import com.jme3.audio.AudioData.DataType;
+
 
 
 
@@ -42,6 +45,7 @@ public class Main extends SimpleApplication {
     private Node centerObject;    
     private float speed = 30f;
     private float orbitRadius = 3.0f;
+    private AudioNode audio;
     
     // Inputs
     private final static Trigger TRIGGER_CLICK = new MouseButtonTrigger(MouseInput.BUTTON_LEFT);
@@ -58,6 +62,7 @@ public class Main extends SimpleApplication {
     public void simpleInitApp() {
         CamSettings();
         LoadAnemone();
+        loadAndPlayMusic();
         
         inputManager.addMapping(MAPPING_CLICK, TRIGGER_CLICK);
         inputManager.addListener(actionListener, new String[]{MAPPING_CLICK});
@@ -119,6 +124,24 @@ public class Main extends SimpleApplication {
         System.out.println(pos);
         sphere.setLocalTranslation(new Vector3f(0, 0, -10));
         rootNode.attachChild(sphere);
+    }
+    
+    /*
+    Metodo para cargar la musica
+    */
+    
+     public void loadAndPlayMusic() {
+        // Cargar el archivo de audio OGG
+        audio = new AudioNode(assetManager, "Sounds/AquaSong.wav", DataType.Stream);
+        audio.setLooping(true); // Para que la música se repita
+        audio.setPositional(false); // La música de fondo no es posicional
+        audio.setVolume(8); // Ajusta el volumen
+
+        // Adjuntar el nodo de audio al nodo raíz
+        rootNode.attachChild(audio);
+
+        // Reproducir el audio
+        audio.play();
     }
     
     
