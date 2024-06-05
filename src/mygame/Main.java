@@ -3,6 +3,8 @@ package mygame;
 import com.jme3.app.SimpleApplication;
 import com.jme3.asset.plugins.FileLocator;
 import com.jme3.collision.CollisionResults;
+import com.jme3.font.BitmapFont;
+import com.jme3.font.BitmapText;
 import com.jme3.input.MouseInput;
 import com.jme3.input.controls.ActionListener;
 import com.jme3.input.controls.MouseButtonTrigger;
@@ -17,39 +19,44 @@ import com.jme3.post.filters.BloomFilter;
 import com.jme3.renderer.RenderManager;
 import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
-import com.jme3.input.controls.ActionListener;
 import com.jme3.material.Material;
 import com.jme3.math.Ray;
-import com.jme3.texture.Texture;
 import com.jme3.math.Vector2f;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.shape.Sphere;
 import com.jme3.audio.AudioNode;
 import com.jme3.audio.AudioData.DataType;
+import com.jme3.scene.shape.Box;
+import com.jme3.texture.Texture;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
-
-
-
-/**
- * This is the Main Class of your Game. You should only do initialization here.
- * Move your Logic into AppStates or Controls
- * @author normenhansen
- */
 public class Main extends SimpleApplication {
     private static Main app;
-// Camara
+    // Camara
     private FilterPostProcessor fpp;
     
     // Game
     private Spatial clownfish;
     private Node centerObject;    
-    private float speed = 30f;
+    private float speed = 1.5f;
     private float orbitRadius = 3.0f;
     private AudioNode audio;
+    private List<Spatial> enemies = new ArrayList<>();
+    private Random random = new Random();
+    private ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1);
+    private float spawnInterval = 5f; // Intervalo inicial de aparición en segundos
+    private int score = 0; // Variable para el puntaje
+    private BitmapText scoreText; // Texto para mostrar el puntaje
     
     // Inputs
     private final static Trigger TRIGGER_CLICK = new MouseButtonTrigger(MouseInput.BUTTON_LEFT);
     private final static String MAPPING_CLICK = "Click";
+    
     
     
 
@@ -63,6 +70,8 @@ public class Main extends SimpleApplication {
         CamSettings();
         LoadAnemone();
         loadAndPlayMusic();
+        initScoreText();
+        startEnemySpawning();
         
         inputManager.addMapping(MAPPING_CLICK, TRIGGER_CLICK);
         inputManager.addListener(actionListener, new String[]{MAPPING_CLICK});
@@ -134,36 +143,114 @@ public class Main extends SimpleApplication {
         // Cargar el archivo de audio 
         audio = new AudioNode(assetManager, "Sounds/AquaSong.wav", DataType.Stream);
         audio.setLooping(true); // Para que la música se repita
-        audio.setPositional(false); // La música de fondo no es posicional
+        audio.setPositional(false); 
         audio.setVolume(8); // Ajusta el volumen
 
         // Adjuntar el nodo de audio al nodo raíz
         rootNode.attachChild(audio);
 
-        // Reproducir el audio
+        
         audio.play();
     }
+     
+    /*
+     Metodo para generar enemigos 
+     */
+     
+    private void startEnemySpawning() {
+    // Generar enemigos
+        executor.scheduleAtFixedRate(() -> enqueue(new Callable<Void>() {
+            @Override
+            public Void call() {
+                spawnEnemy();
+                return null;
+            }
+        }), 0, (long) spawnInterval, TimeUnit.SECONDS);
+
+        // Aumentar la velocidad de aparición de enemigos cada 10 segundos
+        executor.scheduleAtFixedRate(() -> enqueue(new Callable<Void>() {
+            @Override
+            public Void call() {
+                if (spawnInterval > 1) { // No reducir el intervalo por debajo de 1 segundo
+                    spawnInterval -= 0.5f;
+                    restartEnemySpawning();
+                }
+                return null;
+            }
+        }), 10, 10, TimeUnit.SECONDS);
+    }
+
+    private void restartEnemySpawning() {
+        // Cancelar y reiniciar el generador de enemigos con el nuevo intervalo
+        executor.shutdownNow();
+        executor = new ScheduledThreadPoolExecutor(1);
+        startEnemySpawning();
+    }
+
+    private void spawnEnemy() {
+        Spatial lionfish = assetManager.loadModel("Models/reef/lionfish.glb");
+        lionfish.scale(0.3f);
+
+        // Generar posición aleatoria alrededor de la anemona
+        float x = random.nextFloat() * 20 - 10; // Valores aleatorios entre -10 y 10
+        float y = random.nextFloat() * 20 - 10;
+        float z = random.nextFloat() * 20 - 10; 
+
+        lionfish.setLocalTranslation(new Vector3f(x, y, z));
+        rootNode.attachChild(lionfish);
+        enemies.add(lionfish);
+    }
     
+    private void moveEnemiesTowardsAnemone(float tpf) {
+        for (Spatial enemy : enemies) {
+            Vector3f direction = centerObject.getLocalTranslation().subtract(enemy.getLocalTranslation()).normalize();
+            enemy.move(direction.mult(tpf * speed)); 
+        }
+    }
     
     private final ActionListener actionListener = new ActionListener() {
         @Override
-            public void onAction(String name, boolean isPressed, float tpf){
-                if(name.equals(MAPPING_CLICK) && !isPressed){
-                    CollisionResults results = new CollisionResults();
-                    // CLICK
-                    Vector2f click2d = inputManager.getCursorPosition();
-                    Vector3f click3d = cam.getWorldCoordinates(new Vector2f(click2d.getX(), click2d.getY()), 0f);
-                    Vector3f dir = cam.getWorldCoordinates(new Vector2f(click2d.getX(), click2d.getY()), 1f).subtractLocal(click3d);
-                    Ray ray = new Ray(click3d, dir);
-                    rootNode.collideWith(ray, results);
-                    //Bubbles(click3d);
+        public void onAction(String name, boolean isPressed, float tpf) {
+            if (name.equals(MAPPING_CLICK) && !isPressed) {
+                CollisionResults results = new CollisionResults();
+                // CLICK
+                Vector2f click2d = inputManager.getCursorPosition();
+                Vector3f click3d = cam.getWorldCoordinates(new Vector2f(click2d.getX(), click2d.getY()), 0f);
+                Vector3f dir = cam.getWorldCoordinates(new Vector2f(click2d.getX(), click2d.getY()), 1f).subtractLocal(click3d);
+                Ray ray = new Ray(click3d, dir);
+                rootNode.collideWith(ray, results);
+
+                if (results.size() > 0) {
+                    Spatial clickedSpatial = results.getClosestCollision().getGeometry();
+                    if (enemies.contains(clickedSpatial)) {
+                        rootNode.detachChild(clickedSpatial);
+                        enemies.remove(clickedSpatial);
+                        score += 10;
+                        updateScoreText();
+                    }
                 }
             }
+        }
     };
+    
+    private void initScoreText() {
+        BitmapFont myFont = assetManager.loadFont("Interface/Fonts/Default.fnt");
+        scoreText = new BitmapText(myFont, false);
+        scoreText.setSize(myFont.getCharSet().getRenderedSize());
+        scoreText.setColor(ColorRGBA.White);
+        scoreText.setText("Score: 0");
+        scoreText.setLocalTranslation(10, settings.getHeight() - scoreText.getLineHeight(), 0);
+        guiNode.attachChild(scoreText);
+    }
+    
+    private void updateScoreText() {
+        scoreText.setText("Score: " + score);
+    }
     
     @Override
     public void simpleUpdate(float tpf) {
         RotateClownFish(tpf);
+        moveEnemiesTowardsAnemone(tpf);
     }
     /*
         Metodo que rota al pez payaso sobre la anemona.
@@ -187,3 +274,4 @@ public class Main extends SimpleApplication {
         //TODO: add render code
     }
 }
+
