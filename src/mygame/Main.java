@@ -50,8 +50,10 @@ public class Main extends SimpleApplication {
     private Random random = new Random();
     private ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1);
     private float spawnInterval = 5f; // Intervalo inicial de aparición en segundos
-    private int score = 0; // Variable para el puntaje
-    private BitmapText scoreText; // Texto para mostrar el puntaje
+    private int score = 0;
+    private BitmapText scoreText;
+    private int anemoneHealth = 300;
+    private BitmapText healthText;
     
     // Inputs
     private final static Trigger TRIGGER_CLICK = new MouseButtonTrigger(MouseInput.BUTTON_LEFT);
@@ -71,6 +73,7 @@ public class Main extends SimpleApplication {
         LoadAnemone();
         loadAndPlayMusic();
         initScoreText();
+        initHealthText();
         startEnemySpawning();
         
         inputManager.addMapping(MAPPING_CLICK, TRIGGER_CLICK);
@@ -192,7 +195,7 @@ public class Main extends SimpleApplication {
         lionfish.scale(0.3f);
 
         // Generar posición aleatoria alrededor de la anemona
-        float x = random.nextFloat() * 20 - 10; // Valores aleatorios entre -10 y 10
+                float x = random.nextFloat() * 20 - 10; // Valores aleatorios entre -10 y 10
         float y = random.nextFloat() * 20 - 10;
         float z = random.nextFloat() * 20 - 10; 
 
@@ -228,23 +231,41 @@ public class Main extends SimpleApplication {
                         score += 10;
                         updateScoreText();
                     }
+                    if (clickedSpatial == centerObject && anemoneHealth > 0) {
+                        anemoneHealth -= 10;
+                        updateHealthText();
+                    }
                 }
             }
         }
     };
     
     private void initScoreText() {
-        BitmapFont myFont = assetManager.loadFont("Interface/Fonts/Default.fnt");
-        scoreText = new BitmapText(myFont, false);
-        scoreText.setSize(myFont.getCharSet().getRenderedSize());
-        scoreText.setColor(ColorRGBA.White);
-        scoreText.setText("Score: 0");
-        scoreText.setLocalTranslation(10, settings.getHeight() - scoreText.getLineHeight(), 0);
+        BitmapFont guiFont = assetManager.loadFont("Interface/Fonts/Default.fnt");
+        scoreText = new BitmapText(guiFont, false);
+        scoreText.setSize(guiFont.getCharSet().getRenderedSize());      // font size
+        scoreText.setColor(ColorRGBA.White);                             // font color
+        scoreText.setText("Score: " + score);                            // the text
+        scoreText.setLocalTranslation(300, scoreText.getLineHeight(), 0); // position
         guiNode.attachChild(scoreText);
     }
     
     private void updateScoreText() {
         scoreText.setText("Score: " + score);
+    }
+    
+     private void initHealthText() {
+        BitmapFont guiFont = assetManager.loadFont("Interface/Fonts/Default.fnt");
+        healthText = new BitmapText(guiFont, false);
+        healthText.setSize(guiFont.getCharSet().getRenderedSize());      // font size
+        healthText.setColor(ColorRGBA.Red);                             // font color
+        healthText.setText("Health: " + anemoneHealth);                 // the text
+        healthText.setLocalTranslation(300, healthText.getLineHeight() * 2, 0); // position
+        guiNode.attachChild(healthText);
+    }
+
+    private void updateHealthText() {
+        healthText.setText("Health: " + anemoneHealth);
     }
     
     @Override
