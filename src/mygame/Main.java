@@ -10,6 +10,8 @@ import com.jme3.bullet.control.RigidBodyControl;
 import com.jme3.bullet.util.CollisionShapeFactory;
 import com.jme3.collision.CollisionResult;
 import com.jme3.collision.CollisionResults;
+import com.jme3.effect.ParticleEmitter;
+import com.jme3.effect.ParticleMesh;
 import com.jme3.font.BitmapFont;
 import com.jme3.font.BitmapText;
 import com.jme3.input.KeyInput;
@@ -36,7 +38,11 @@ import com.jme3.renderer.queue.RenderQueue;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.shape.Box;
 import com.jme3.scene.shape.Sphere;
+import com.jme3.system.AppSettings;
 import com.jme3.texture.Texture;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 /**
  * Esta clase carga la logica del juego y los estados de este
  * como el comienzo, update, y el gameover.
@@ -53,7 +59,7 @@ public class Main extends SimpleApplication {
     
     // Game
     private int score = 0;
-    public int anemoneHealth = 100;
+    public int anemoneHealth = 250;
     private AudioNode audio;
     private BitmapText scoreText;
     private BitmapText healthText;
@@ -76,9 +82,13 @@ public class Main extends SimpleApplication {
     private float enemiSpeed = 15f;
     private float spawntime = 1.5f;
     
-
+    
     public static void main(String[] args) {
         app = new Main();
+        AppSettings settings = new AppSettings(true);
+        settings.setTitle("Edwin: Clownfish");
+        settings.setSettingsDialogImage("Textures/foto.png");
+        app.setSettings(settings);
         app.start();
     }
 
@@ -111,7 +121,7 @@ public class Main extends SimpleApplication {
         
         flyCam.setEnabled(false);
         inputManager.setCursorVisible(true);
-        viewPort.setBackgroundColor(ColorRGBA.Blue);
+        viewPort.setBackgroundColor(ColorRGBA.fromRGBA255(0, 0, 128, 1));
         
         DirectionalLight sun = new DirectionalLight();
         sun.setDirection(new Vector3f(0f, -90f, -65)); 
@@ -202,6 +212,11 @@ public class Main extends SimpleApplication {
                     Geometry target = results.getClosestCollision().getGeometry();
                     if(target.getName().equals("Enemy")){
                         Spatial enemySpatial = target.getParent();
+                        
+                        ParticleEmitter emitter = createParticleEmitter();
+                        emitter.setLocalTranslation(enemySpatial.getWorldTranslation());
+                        rootNode.attachChild(emitter);
+                        
                         rootNode.detachChild(enemySpatial);
                         enemySpatial.removeFromParent();
                         SpawnEnemy();
@@ -211,6 +226,25 @@ public class Main extends SimpleApplication {
             }
         }
     };
+    
+    private ParticleEmitter createParticleEmitter() {
+        ParticleEmitter emitter = new ParticleEmitter("Emitter", ParticleMesh.Type.Triangle, 30);
+        Material mat_red = new Material(assetManager, "Common/MatDefs/Misc/Particle.j3md");
+        mat_red.setTexture("Texture", assetManager.loadTexture("Textures/bubble_1.png"));
+        emitter.setMaterial(mat_red);
+        
+        emitter.setEndColor(new ColorRGBA(1f, 0f, 0f, 1f)); // Color de las partículas al final
+        emitter.setStartColor(new ColorRGBA(1f, 1f, 0f, 0.5f)); // Color de las partículas al inicio
+        emitter.getParticleInfluencer().setInitialVelocity(new Vector3f(0, 2, 0));
+        emitter.setStartSize(1.0f);
+        emitter.setEndSize(0.1f);
+        emitter.setGravity(0, -1, 0);
+        emitter.setLowLife(1f);
+        emitter.setHighLife(2f);
+        emitter.getParticleInfluencer().setVelocityVariation(0.3f);
+        return emitter;
+    }
+
     
     private final ActionListener actionListenerReset = new ActionListener() {
         @Override
@@ -343,6 +377,7 @@ public class Main extends SimpleApplication {
         // Detiene las actualizaciones del juego
         // Por ejemplo, deshabilitar el ActionListener
         inputManager.removeListener(actionListener);
+        clownfish.removeFromParent();
     }
     
     // Método para reiniciar el juego
